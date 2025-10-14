@@ -1,0 +1,36 @@
+body {
+  font-family: Arial, sans-serif;
+  padding: 20px;
+  background-color: #fafafa;
+  color: #222;
+}
+
+nav a {
+  margin-right: 10px;
+  text-decoration: none;
+  color: #0d6efd;
+}
+
+h1 {
+  color: #222;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+li {
+  margin-bottom: 10px;
+}
+
+body {
+  font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.card-title {
+  font-size: 1.05rem;
+}
+
+footer {
+  font-size: 0.9rem;
+}

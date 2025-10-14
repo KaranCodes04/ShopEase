@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <div class="col-12">
+      <h1 class="display-5">{{ product.name }}</h1>
+      <hr>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-8">
+      <p><strong>Description:</strong> {{ product.description|default:"(No description)" }}</p>
+      <p><strong>Price:</strong> <span class="text-success">₹{{ product.price|default:"N/A" }}</span></p>
+      <p><strong>Category:</strong> {{ product.category|default:"Uncategorized" }}</p>
+      <div class="mt-4">
+        <a class="btn btn-secondary me-2" href="{% url 'store:product_list' %}">Back to Products</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
