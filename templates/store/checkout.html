@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Your Checkout</h2>
+
+  {% if cart_with_totals %}
+    <table class="table">
+      <thead><tr><th>Product</th><th>Price</th><th>Qty</th><th>Line total</th></tr></thead>
+      <tbody>
+        {% for item, line in cart_with_totals %}
+        <tr>
+          <td>{{ item.product.name }}</td>
+          <td>₹{{ item.product.price }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>₹{{ line }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <h4>Grand Total: ₹{{ grand_total }}</h4>
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label>Full name</label>
+        <input name="full_name" class="form-control" required>
+      </div>
+      <div class="mb-3">
+        <label>Address</label>
+        <textarea name="address" class="form-control" required></textarea>
+      </div>
+      <div class="mb-3">
+        <label>Phone</label>
+        <input name="phone" class="form-control" required>
+      </div>
+      <button class="btn btn-primary">Place Order</button>
+    </form>
+
+  {% else %}
+    <p>Your cart is empty.</p>
+    <a class="btn btn-secondary" href="{% url 'store:product_list' %}">Continue shopping</a>
+  {% endif %}
+</div>
+{% endblock %}
+

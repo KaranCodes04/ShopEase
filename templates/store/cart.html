@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="text-center">Your Shopping Cart</h1>
+
+  {% if cart_with_totals %}
+  <table class="table mt-4">
+    <thead>
+      <tr>
+        <th>Product</th>
+        <th>Price</th>
+        <th>Quantity</th>
+        <th>Line total</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item, line_total in cart_with_totals %}
+      <tr>
+        <td>{{ item.product.name }}</td>
+        <td>₹{{ item.product.price }}</td>
+        <td>
+          <form method="post" action="{% url 'store:update_cart_item' item.id %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="decrement">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">-</button>
+          </form>
+
+          <span class="mx-2">{{ item.quantity }}</span>
+
+          <form method="post" action="{% url 'store:update_cart_item' item.id %}" style="display:inline;">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="increment">
+            <button class="btn btn-sm btn-outline-secondary" type="submit">+</button>
+          </form>
+        </td>
+        <td>₹{{ line_total }}</td>
+        <td>
+          <form method="post" action="{% url 'store:remove_from_cart' item.id %}">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-danger" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="text-right">
+    <h4>Grand Total: ₹{{ grand_total }}</h4>
+  </div>
+
+  {% else %}
+  <p class="text-center mt-4">Your cart is empty.</p>
+  {% endif %}
+
+  <div class="text-center mt-4">
+    <a href="{% url 'store:product_list' %}" class="btn btn-secondary">Continue Shopping</a>
+  </div>
+</div>
+{% endblock %}
+
