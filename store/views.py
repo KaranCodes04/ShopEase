@@ -1,5 +1,5 @@
 from django.views.generic import ListView, DetailView
-from .models import Product
+from .models import Product,Category
 from django.contrib.auth.forms import UserCreationForm
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
@@ -139,6 +139,18 @@ def checkout(request):
 @login_required
 def checkout_success(request):
     return render(request, 'store/checkout_success.html')
+
+def about_view(request):
+    return render(request, 'store/about.html')
+
+def contact_view(request):
+    return render(request, 'store/contact.html')
+
+def products_by_category(request, pk):
+    category = Category.objects.get(pk=pk)
+    products = Product.objects.filter(category=category)
+    return render(request, 'store/product_list.html', {'products': products, 'selected_category': category})
+
 
 
 
