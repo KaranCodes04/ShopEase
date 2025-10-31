@@ -1,35 +1,210 @@
-{% extends 'base.html' %}
-{% block title %}All Products{% endblock %}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+  {% if selected_category %}{{ selected_category.name }} - ShopEase{% else %}All Products - ShopEase{% endif %}
+{% endblock %}
+
 {% block content %}
 
-<div class="p-4 mb-4 bg-light rounded-3 text-center shadow-sm">
-  <h1 class="fw-bold text-primary">Welcome to ShopEase</h1>
-  <p class="lead text-muted">Your one-stop destination for all products</p>
-  <a href="{% url 'store:view_cart' %}" class="btn btn-primary btn-lg">Go to Cart</a>
-</div>
+<style>
+/* Category bar styles (keeps contrast on the purple header) */
+.category-bar-wrap {
+  background: var(--purple-3);
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
 
-<h2 class="mb-3 text-center">Our Products</h2>
-<div class="row">
-  {% for p in products %}
-  <div class="col-md-4 mb-4">
-    <div class="card h-100 shadow-sm">
-      {% if p.image %}
-      <img src="{{ p.image.url }}" class="card-img-top" style="height:200px;object-fit:contain;">
+
+.category-bar {
+  display:flex;
+  gap:10px;
+  align-items:center;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+
+/* pill look */
+.pill {
+  display:inline-block;
+  border-radius:999px;
+  padding:.42rem .9rem;
+  font-size:.9rem;
+  text-decoration:none;
+  border:1px solid rgba(255,255,255,0.12);
+  transition:transform .12s ease, background .12s ease;
+  color: #fff !important;
+  background: rgba(255,255,255,0.06);
+}
+.pill:hover { transform:translateY(-2px); }
+
+/* active pill: visible and clear */
+.pill.active {
+  background: var(--purple-1) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,0.2);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+
+
+/* small responsive tweaks */
+@media (max-width:767px) {
+  .category-bar { justify-content:flex-start; overflow:auto; padding-bottom:6px; gap:8px; }
+  .category-bar-wrap { padding-left:12px; padding-right:12px; }
+}
+</style>
+
+{# --- Category bar (below navbar, above hero) --- #}
+<div class="container">
+  <div class="category-bar-wrap">
+    <div class="category-bar">
+      <a href="{% url 'store:product_list' %}"
+         class="pill {% if not selected_category %}active{% endif %}">
+        All
+      </a>
+
+      {% if categories %}
+        {% for c in categories %}
+          <a href="{% url 'store:products_by_category' c.id %}"
+             class="pill {% if selected_category and selected_category.id == c.id %}active{% endif %}">
+            {{ c.name }}
+          </a>
+        {% endfor %}
       {% endif %}
-      <div class="card-body text-center">
-        <h5>{{ p.name }}</h5>
-        <p class="text-muted">{{ p.description|truncatechars:60 }}</p>
-        <h6 class="text-success">₹{{ p.price }}</h6>
-        <a href="{% url 'store:add_to_cart' p.id %}" class="btn btn-primary btn-sm">Add to Cart</a>
-      </div>
     </div>
   </div>
+</div>
+
+{# --- Hero / heading --- #}
+<div class="text-center mb-4">
+  <h1 class="fw-bold" style="color:#5a189a;">Welcome to ShopEase</h1>
+  <p class="text-muted">Your one-stop destination for all products</p>
+</div>
+
+<h2 class="text-center mb-4">Our Products</h2>
+
+<div class="row justify-content-center">
+  {% for p in products %}
+    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+      <div class="card h-100 shadow-sm text-center">
+        {% if p.image %}
+          <img src="{{ p.image.url }}" class="card-img-top" style="height:220px;object-fit:contain;" alt="{{ p.name }}">
+        {% endif %}
+        <div class="card-body">
+          <h5 class="card-title">{{ p.name }}</h5>
+          <p class="text-muted">{{ p.description|truncatechars:80 }}</p>
+          <h6 class="text-success mb-3">₹{{ p.price }}</h6>
+
+          <button
+            class="btn btn-purple add-to-cart-btn"
+            data-add-url="{% url 'store:add_to_cart' p.id %}"
+            data-product-name="{{ p.name|escape }}">
+            Add to Cart
+          </button>
+        </div>
+      </div>
+    </div>
   {% empty %}
-  <p>No products available.</p>
+    <p class="text-center">No products available.</p>
   {% endfor %}
 </div>
 
+{# toast container #}
+<div id="toast-container" style="position: fixed; bottom: 20px; right: 20px; z-index: 9999;"></div>
+
+<script>
+/* Get CSRF token from cookie (Django default cookie name 'csrftoken') */
+function getCookie(name) {
+  const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+  return v ? v.pop() : '';
+}
+const csrftoken = getCookie('csrftoken');
+
+function showToast(message, success=true) {
+  const toastContainer = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.innerText = message;
+  t.style.background = success ? '#5a189a' : '#d9534f';
+  t.style.color = '#fff';
+  t.style.padding = '10px 14px';
+  t.style.borderRadius = '8px';
+  t.style.marginTop = '10px';
+  t.style.boxShadow = '0 6px 18px rgba(0,0,0,0.12)';
+  t.style.opacity = '0';
+  t.style.transition = 'opacity .18s ease';
+  toastContainer.appendChild(t);
+  setTimeout(()=> t.style.opacity = '1', 40);
+  setTimeout(()=> { t.style.opacity = '0'; setTimeout(()=> t.remove(), 300); }, 2600);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const cartLink = document.querySelector('a.nav-link[href*="cart"]');
+
+  document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const url = btn.dataset.addUrl;
+      const productName = btn.dataset.productName || 'Product';
+
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrftoken,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ quantity: 1 })
+        });
+
+        if (!resp.ok) {
+          let msg = 'Network error — try again';
+          try { const j = await resp.json(); if(j.message) msg = j.message; } catch(e){}
+          showToast(msg, false);
+          return;
+        }
+
+        const data = await resp.json();
+        if (data.success) {
+          showToast(data.message || (productName + ' added to cart!'), true);
+
+          // update navbar cart count if present
+          if (cartLink) {
+            const match = cartLink.textContent.match(/\((\d+)\)/);
+            if (match) {
+              cartLink.textContent = `Cart (${data.cart_count || (parseInt(match[1]) + 1)})`;
+            } else {
+              cartLink.textContent = `Cart (${data.cart_count || 1})`;
+            }
+          }
+        } else {
+          showToast(data.message || 'Could not add', false);
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('Network error — try again', false);
+      }
+    });
+  });
+});
+</script>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

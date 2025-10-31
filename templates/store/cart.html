@@ -1,62 +1,237 @@
 {% extends "base.html" %}
+{% load static %}
+
+{% block title %}Your Cart{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-  <h1 class="text-center">Your Shopping Cart</h1>
+<div class="page-container">
+  <h1 class="text-center mb-4" style="color:var(--purple-3)">Your Shopping Cart</h1>
 
-  {% if cart_with_totals %}
-  <table class="table mt-4">
-    <thead>
-      <tr>
-        <th>Product</th>
-        <th>Price</th>
-        <th>Quantity</th>
-        <th>Line total</th>
-        <th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for item, line_total in cart_with_totals %}
-      <tr>
-        <td>{{ item.product.name }}</td>
-        <td>₹{{ item.product.price }}</td>
-        <td>
-          <form method="post" action="{% url 'store:update_cart_item' item.id %}" style="display:inline;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="decrement">
-            <button class="btn btn-sm btn-outline-secondary" type="submit">-</button>
-          </form>
+  {% if cart_items %}
+  <div class="card p-3 mb-4">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th>Price</th>
+          <th style="width:200px">Quantity</th>
+          <th>Subtotal</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="cart-items-body">
+        {% for item in cart_items %}
+        <tr data-item-id="{% if user.is_authenticated %}{{ item.id }}{% else %}{{ item.id }}{% endif %}">
+          <td style="vertical-align:middle;">
+            {% if user.is_authenticated %}
+              {{ item.product.name }}
+            {% else %}
+              {{ item.product.name }}
+            {% endif %}
+          </td>
+          <td style="vertical-align:middle;">₹{% if user.is_authenticated %}{{ item.product.price }}{% else %}{{ item.product.price }}{% endif %}</td>
+          <td style="vertical-align:middle;">
+            <div class="d-flex align-items-center">
+              <button class="btn btn-sm me-2 btn-qty btn-decrease" data-update-url="{% if user.is_authenticated %}{% url 'store:cart_update' item.id %}{% else %}{% url 'store:cart_update' item.id %}{% endif %}">−</button>
+              <input class="form-control form-control-sm text-center qty-input" style="width:68px" value="{% if user.is_authenticated %}{{ item.quantity }}{% else %}{{ item.quantity }}{% endif %}" />
+              <button class="btn btn-sm ms-2 btn-qty btn-increase" data-update-url="{% if user.is_authenticated %}{% url 'store:cart_update' item.id %}{% else %}{% url 'store:cart_update' item.id %}{% endif %}">+</button>
+            </div>
+          </td>
+          <td class="item-subtotal" style="vertical-align:middle;">₹{% if user.is_authenticated %}{{ item.product.price|floatformat:2|add:"0" }}{% else %}{{ item.subtotal|floatformat:2 }}{% endif %}</td>
+          <td style="vertical-align:middle;">
+            <button class="btn btn-sm btn-outline-danger btn-remove" data-remove-url="{% if user.is_authenticated %}{% url 'store:cart_remove' item.id %}{% else %}{% url 'store:cart_remove' item.id %}{% endif %}">Remove</button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
 
-          <span class="mx-2">{{ item.quantity }}</span>
-
-          <form method="post" action="{% url 'store:update_cart_item' item.id %}" style="display:inline;">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="increment">
-            <button class="btn btn-sm btn-outline-secondary" type="submit">+</button>
-          </form>
-        </td>
-        <td>₹{{ line_total }}</td>
-        <td>
-          <form method="post" action="{% url 'store:remove_from_cart' item.id %}">
-            {% csrf_token %}
-            <button class="btn btn-sm btn-danger" type="submit">Remove</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  <div class="text-right">
-    <h4>Grand Total: ₹{{ grand_total }}</h4>
+    <div class="d-flex justify-content-between align-items-center mt-3">
+      <a href="{% url 'store:product_list' %}" class="btn btn-outline-secondary">Continue Shopping</a>
+      <div>
+        <strong class="me-3">Grand Total: </strong>
+        <span id="grand-total">₹{{ grand_total }}</span>
+        {% if user.is_authenticated %}
+          <a class="btn btn-purple" href="{% url 'store:checkout' %}">Proceed to Checkout</a>
+        {% else %}
+          <a class="btn btn-outline-secondary" href="{% url 'login' %}?next={% url 'store:checkout' %}">Proceed to Checkout</a>
+        {% endif %}
+      </div>
+    </div>
   </div>
-
   {% else %}
-  <p class="text-center mt-4">Your cart is empty.</p>
-  {% endif %}
-
-  <div class="text-center mt-4">
-    <a href="{% url 'store:product_list' %}" class="btn btn-secondary">Continue Shopping</a>
+  <div class="empty-state">
+    <h3 style="color:var(--purple-3)">Your cart is empty.</h3>
+    <p class="text-muted">Start shopping to add items to your cart.</p>
+    <a class="btn btn-purple" href="{% url 'store:product_list' %}">Start Shopping</a>
   </div>
+  {% endif %}
 </div>
+
+<div id="toast-container" style="position:fixed; right:20px; bottom:20px; z-index:9999;"></div>
+
+<script>
+function getCookie(name){ const v=document.cookie.match('(^|;)\\s*'+name+'\\s*=\\s*([^;]+)'); return v? v.pop(): ''; }
+const csrftoken = getCookie('csrftoken');
+
+function showToast(msg, success=true){
+  const t = document.createElement('div');
+  t.innerText = msg;
+  t.style.background = success ? 'var(--purple-1)' : '#d9534f';
+  t.style.color='#fff';
+  t.style.padding='10px 14px';
+  t.style.borderRadius='8px';
+  t.style.marginTop='10px';
+  t.style.boxShadow='0 6px 18px rgba(0,0,0,0.12)';
+  document.getElementById('toast-container').appendChild(t);
+  setTimeout(()=> t.style.opacity = 1, 50);
+  setTimeout(()=> { t.style.opacity = 0; setTimeout(()=> t.remove(),300); }, 2500);
+}
+
+function applyUpdate(itemId, itemSubtotal, grandTotal, newQty){
+  const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+  if(!row) return;
+  row.querySelector('.item-subtotal').textContent = '₹' + parseFloat(itemSubtotal).toFixed(2);
+  row.querySelector('.qty-input').value = newQty;
+  document.getElementById('grand-total').textContent = '₹' + parseFloat(grandTotal).toFixed(2);
+}
+
+function removeRow(itemId, grandTotal){
+  const row = document.querySelector(`tr[data-item-id="${itemId}"]`);
+  if(row) row.remove();
+  document.getElementById('grand-total').textContent = '₹' + parseFloat(grandTotal).toFixed(2);
+  if(document.querySelectorAll('#cart-items-body tr').length === 0) location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.btn-increase').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('tr');
+      const itemId = row.dataset.itemId;
+      const qtyInput = row.querySelector('.qty-input');
+      const newQty = parseInt(qtyInput.value || '0') + 1;
+      const url = btn.dataset.updateUrl;
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrftoken },
+          body: JSON.stringify({ quantity: newQty })
+        });
+        const data = await resp.json();
+        if(resp.ok && data.success){
+          applyUpdate(itemId, data.item_subtotal, data.grand_total, data.quantity);
+        } else {
+          showToast(data.message || 'Could not update', false);
+        }
+      } catch(err){
+        console.error(err);
+        showToast('Network error', false);
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-decrease').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const row = btn.closest('tr');
+      const itemId = row.dataset.itemId;
+      const qtyInput = row.querySelector('.qty-input');
+      let newQty = parseInt(qtyInput.value || '0') - 1;
+      if(newQty < 1) {
+        if(!confirm('Quantity will become 0 — remove item from cart?')) return;
+        const removeUrl = row.querySelector('.btn-remove').dataset.removeUrl;
+        try {
+          const resp = await fetch(removeUrl, {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrftoken },
+            body: JSON.stringify({})
+          });
+          const data = await resp.json();
+          if(resp.ok && data.success){
+            removeRow(itemId, data.grand_total);
+            showToast('Item removed');
+          } else showToast(data.message || 'Could not remove', false);
+        } catch(err){ showToast('Network error', false); }
+        return;
+      }
+      const url = btn.dataset.updateUrl;
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrftoken },
+          body: JSON.stringify({ quantity: newQty })
+        });
+        const data = await resp.json();
+        if(resp.ok && data.success){
+          applyUpdate(itemId, data.item_subtotal, data.grand_total, data.quantity);
+        } else {
+          showToast(data.message || 'Could not update', false);
+        }
+      } catch(err){
+        console.error(err);
+        showToast('Network error', false);
+      }
+    });
+  });
+
+  document.querySelectorAll('.qty-input').forEach(input => {
+    input.addEventListener('change', async () => {
+      const row = input.closest('tr');
+      const itemId = row.dataset.itemId;
+      let newQty = parseInt(input.value || '0');
+      if(newQty < 1) { input.value = 1; newQty = 1; }
+      const url = row.querySelector('.btn-increase').dataset.updateUrl;
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrftoken },
+          body: JSON.stringify({ quantity: newQty })
+        });
+        const data = await resp.json();
+        if(resp.ok && data.success){
+          applyUpdate(itemId, data.item_subtotal, data.grand_total, data.quantity);
+        } else {
+          showToast(data.message || 'Could not update', false);
+        }
+      } catch(err){
+        showToast('Network error', false);
+      }
+    });
+  });
+
+  document.querySelectorAll('.btn-remove').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(!confirm('Remove this item from cart?')) return;
+      const row = btn.closest('tr');
+      const itemId = row.dataset.itemId;
+      const url = btn.dataset.removeUrl;
+      try {
+        const resp = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type':'application/json', 'X-CSRFToken': csrftoken },
+          body: JSON.stringify({})
+        });
+        const data = await resp.json();
+        if(resp.ok && data.success){
+          removeRow(itemId, data.grand_total);
+          showToast('Item removed');
+        } else showToast(data.message || 'Could not remove', false);
+      } catch(err) {
+        showToast('Network error', false);
+      }
+    });
+  });
+
+});
+</script>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+
 

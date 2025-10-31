@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}Categories - ShopEase{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+  <h1 class="fw-bold" style="color: var(--purple-3);">Categories</h1>
+</div>
+
+<div class="d-flex flex-wrap justify-content-center gap-3">
+  <!-- "All" button first -->
+  <a href="{% url 'store:product_list' %}" class="btn btn-outline-secondary px-4 py-2">
+    All
+  </a>
+
+  <!-- Loop for all categories -->
+  {% for category in categories %}
+    <a href="{% url 'store:products_by_category' category.id %}" class="btn btn-outline-secondary px-4 py-2">
+      {{ category.name }}
+    </a>
+  {% empty %}
+    <p class="text-muted">No categories available.</p>
+  {% endfor %}
+</div>
+{% endblock %}
+
